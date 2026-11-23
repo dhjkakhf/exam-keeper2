@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>시험지킴이 - AI 전자기기 판별 및 반입 규정 안내</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+    body { font-family: 'Pretendard', sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- 상단 헤더 -->
+  <header class="bg-indigo-900 text-white shadow-md">
+    <div class="max-w-4xl mx-auto px-4 py-5 flex items-center justify-between">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="bg-amber-400 text-indigo-950 text-xs font-extrabold px-2 py-0.5 rounded">감독관 지원 AI</span>
+          <h1 class="text-xl sm:text-2xl font-bold tracking-tight">시험지킴이 (ExamKeeper)</h1>
+        </div>
+        <p class="text-indigo-200 text-xs sm:text-sm mt-1">
+          신형 전자기기 딥러닝 외형 판별 및 수능 공식 반입 규정 안내 시스템
+        </p>
+      </div>
+      <div id="modelStatusBadge" class="text-xs bg-indigo-800 border border-indigo-600 px-3 py-1.5 rounded-full flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+        <span>AI 모델 준비 중...</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- 메인 콘텐츠 -->
+  <main class="max-w-4xl w-full mx-auto px-4 py-8 flex-1 space-y-6">
+
+    <!-- 안내 배너 -->
+    <div class="bg-blue-50 border-l-4 border-blue-600 p-4 rounded-r-lg text-sm text-blue-900">
+      <strong>감독관 유의사항:</strong> 본 AI 판별 결과는 기기 외형 식별을 돕기 위한 보조 자료입니다. 
+      최종 반입 금지 판단은 반드시 기기의 실제 기능 확인 및 교육부 공식 반입 규정에 따라 내려주십시오.
+    </div>
+
+    <!-- 1. 이미지 업로드 및 AI 판별 영역 -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+      <h2 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+        <span class="bg-indigo-100 text-indigo-700 w-6 h-6 rounded-full inline-flex items-center justify-center text-sm">1</span>
+        전자기기 사진 업로드 및 AI 외형 판별
+      </h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+        <!-- 업로드 박스 -->
+        <div>
+          <label for="imageInput" id="dropZone"
+            class="border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition bg-slate-50 hover:bg-indigo-50/40 min-h-[240px]">
+            <img id="previewImage" class="hidden max-h-48 rounded-lg object-contain mb-3 shadow-sm" alt="업로드된 기기 미리보기" />
+            <div id="uploadPlaceholder" class="space-y-2">
+              <svg class="w-10 h-10 text-slate-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+              </svg>
+              <p class="text-sm font-semibold text-slate-700">클릭하여 기기 사진을 선택하세요</p>
+              <p class="text-xs text-slate-500">일반 안경, AI 스마트안경, 스마트워치, 무선 이어폰 등</p>
+            </div>
+            <input type="file" id="imageInput" accept="image/*" class="hidden" />
+          </label>
+
+          <button id="analyzeBtn" disabled
+            class="mt-4 w-full py-3 px-4 rounded-xl font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition shadow-sm">
+            AI 기기 판별 및 반입 규정 확인
+          </button>
+        </div>
+
+        <!-- 판별 결과 카드 -->
+        <div id="resultCard" class="bg-slate-50 border border-slate-200 rounded-xl p-5 min-h-[280px] flex flex-col justify-between">
+          <div id="emptyResult" class="my-auto text-center text-slate-400 text-sm space-y-1">
+            <p class="font-medium text-slate-500">아직 분석된 기기가 없습니다.</p>
+            <p class="text-xs">좌측에서 사진을 업로드한 뒤 판별 버튼을 눌러주세요.</p>
+          </div>
+
+          <div id="loadingResult" class="hidden my-auto text-center space-y-3">
+            <div class="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <p class="text-sm font-semibold text-indigo-700">Hugging Face 딥러닝 모델이 외형을 분석 중입니다...</p>
+          </div>
+
+          <div id="analysisContent" class="hidden space-y-4">
+            <!-- 반입 여부 배지 -->
+            <div class="flex items-start justify-between gap-2 border-b border-slate-200 pb-3">
+              <div>
+                <span class="text-xs text-slate-500 font-medium">AI 판별 기기 유형</span>
+                <h3 id="detectedName" class="text-xl font-extrabold text-slate-900 mt-0.5">-</h3>
+                <p id="confidenceText" class="text-xs text-indigo-600 font-semibold mt-0.5">신뢰도: -%</p>
+              </div>
+              <span id="ruleBadge" class="px-3 py-1.5 rounded-lg text-sm font-extrabold">
+                -
+              </span>
+            </div>
+
+            <!-- 4대 핵심 기능 속성 (표 1 기반) -->
+            <div>
+              <p class="text-xs font-bold text-slate-600 mb-2">핵심 전자 기능 탑재 여부 (데이터셋 기준)</p>
+              <div class="grid grid-cols-2 gap-2 text-xs">
+                <div id="attrCamera" class="p-2 rounded-lg border flex justify-between items-center">
+                  <span>카메라</span><strong class="val">-</strong>
+                </div>
+                <div id="attrMic" class="p-2 rounded-lg border flex justify-between items-center">
+                  <span>마이크·스피커</span><strong class="val">-</strong>
+                </div>
+                <div id="attrComm" class="p-2 rounded-lg border flex justify-between items-center">
+                  <span>통신 기능</span><strong class="val">-</strong>
+                </div>
+                <div id="attrDisplay" class="p-2 rounded-lg border flex justify-between items-center">
+                  <span>디스플레이</span><strong class="val">-</strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- 감독관 현장 확인 가이드 -->
+            <div class="bg-white p-3 rounded-lg border border-slate-200 text-xs space-y-1">
+              <p class="font-bold text-slate-800">🔍 감독관 육안 식별 및 조치 가이드</p>
+              <p id="inspectorGuide" class="text-slate-600 leading-relaxed">-</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. 시험 반입 물품 기준표 (표 1 데이터 직접 조회) -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+          <span class="bg-indigo-100 text-indigo-700 w-6 h-6 rounded-full inline-flex items-center justify-center text-sm">2</span>
+          주요 기기별 기능 속성 및 수능 반입 규정 도감
+        </h2>
+        <select id="filterSelect" class="text-xs border border-slate-300 rounded-lg px-3 py-1.5 bg-white">
+          <option value="all">전체 기기 보기 (8종)</option>
+          <option value="반입 금지">반입 금지 물품만 보기</option>
+          <option value="반입 가능">반입 가능 물품만 보기</option>
+        </select>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs sm:text-sm">
+          <thead>
+            <tr class="bg-slate-100 text-slate-700 border-b border-slate-200">
+              <th class="py-2.5 px-3 font-bold">기기명</th>
+              <th class="py-2.5 px-2 text-center font-bold">카메라</th>
+              <th class="py-2.5 px-2 text-center font-bold">마이크/스피커</th>
+              <th class="py-2.5 px-2 text-center font-bold">통신</th>
+              <th class="py-2.5 px-2 text-center font-bold">디스플레이</th>
+              <th class="py-2.5 px-3 text-center font-bold">반입 규정</th>
+            </tr>
+          </thead>
+          <tbody id="deviceTableBody" class="divide-y divide-slate-200"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="bg-slate-900 text-slate-400 text-xs py-5 text-center">
+    <p>시험지킴이 (ExamKeeper) | 데이터 출처: 교육부 수능 반입 금지 물품 안내 및 Hugging Face 공개 데이터셋</p>
+  </footer>
+
+  <!-- Hugging Face Transformers.js (브라우저 내 딥러닝 모델 구동) -->
+  <script type="module">
+    import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
+
+    // 브라우저 캐시 활용 및 로컬 모델 경로 비활성화
+    env.allowLocalModels = false;
+
+    // 표 1 기반 기기 데이터베이스 및 CLIP 제로샷 프롬프트 매핑
+    const DEVICE_DB = [
+      {
+        id: 'normal_glasses',
+        name: '일반 안경',
+        prompt: 'a photo of regular prescription eyeglasses with thin frames and no camera',
+        has_camera: 0,
+        has_mic_speaker: 0,
+        has_communication: 0,
+        has_display: 0,
+        exam_rule: '반입 가능',
+        guide: '전자 기능이 없는 일반 시력 교정용 안경입니다. 안경다리(힌지)에 카메라 렌즈나 LED 표시등이 없는지 가볍게 확인 후 착용을 허용합니다.'
+      },
+      {
+        id: 'sunglasses',
+        name: '선글라스',
+        prompt: 'a photo of regular dark sunglasses with no electronics',
+        has_camera: 0,
+        has_mic_speaker: 0,
+        has_communication: 0,
+        has_display: 0,
+        exam_rule: '반입 가능',
+        guide: '전자 부품이 없는 일반 선글라스입니다. 다만 프레임에 카메라 홀이나 터치 센서가 부착된 스마트 선글라스인지 외형을 확인하십시오.'
+      },
+      {
+        id: 'smart_glasses',
+        name: 'AI 스마트안경 (Ray-Ban Meta 등)',
+        prompt: 'a photo of smart glasses with thick temple arms and small camera lens on the frame front',
+        has_camera: 1,
+        has_mic_speaker: 1,
+        has_communication: 1,
+        has_display: 1,
+        exam_rule: '반입 금지',
+        guide: '프레임 전면 모서리의 초소형 카메라 렌즈, 두꺼운 안경다리(배터리·스피커 내장), 작동 LED가 특징입니다. 즉시 회수 및 제출 조치 대상입니다.'
+      },
+      {
+        id: 'smartwatch',
+        name: '스마트워치',
+        prompt: 'a photo of a smartwatch with a digital touchscreen',
+        has_camera: 1,
+        has_mic_speaker: 1,
+        has_communication: 1,
+        has_display: 1,
+        exam_rule: '반입 금지',
+        guide: '통신 및 디스플레이 기능을 갖춘 웨어러블 기기입니다. 1교시 시작 전 반드시 전원을 끄고 감독관에게 제출해야 합니다.'
+      },
+      {
+        id: 'smartphone',
+        name: '휴대전화',
+        prompt: 'a photo of a smartphone mobile phone',
+        has_camera: 1,
+        has_mic_speaker: 1,
+        has_communication: 1,
+        has_display: 1,
+        exam_rule: '반입 금지',
+        guide: '대표적인 시험장 반입 금지 물품입니다. 소지 시 부정행위로 간주되므로 전원을 끄고 제출하도록 안내하십시오.'
+      },
+      {
+        id: 'wireless_earbuds',
+        name: '무선·블루투스 이어폰',
+        prompt: 'a photo of wireless bluetooth earbuds earphones',
+        has_camera: 0,
+        has_mic_speaker: 1,
+        has_communication: 1,
+        has_display: 0,
+        exam_rule: '반입 금지',
+        guide: '외부 음성 수신 및 통화가 가능한 통신 기기입니다. 머리카락 등으로 가려 착용할 수 있으므로 수험생 귀 주변을 유의해 확인하십시오.'
+      },
+      {
+        id: 'electronic_watch',
+        name: '전자시계 (디지털 화면)',
+        prompt: 'a photo of a digital electronic wristwatch with LCD screen',
+        has_camera: 0,
+        has_mic_speaker: 0,
+        has_communication: 0,
+        has_display: 1,
+        exam_rule: '반입 금지',
+        guide: '수능 시험장에서는 시침·분침(초침)이 있는 아날로그 시계만 허용됩니다. LCD 등 전자식 화면이 있는 시계는 모두 반입 금지입니다.'
+      },
+      {
+        id: 'tablet',
+        name: '태블릿 PC',
+        prompt: 'a photo of a tablet computer iPad',
+        has_camera: 1,
+        has_mic_speaker: 1,
+        has_communication: 1,
+        has_display: 1,
+        exam_rule: '반입 금지',
+        guide: '통신·저장·화면 표시 기능을 모두 갖춘 기기로 시험장 반입이 엄격히 금지됩니다.'
+      }
+    ];
+
+    let classifier = null;
+    let currentImageUrl = null;
+
+    const statusBadge = document.getElementById('modelStatusBadge');
+    const imageInput = document.getElementById('imageInput');
+    const previewImage = document.getElementById('previewImage');
+    const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+
+    // 1. Hugging Face CLIP 모델 로드
+    async function initModel() {
+      try {
+        classifier = await pipeline('zero-shot-image-classification', 'Xenova/clip-vit-base-patch32');
+        statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span><span>AI 판별 모델 준비 완료</span>`;
+        if (currentImageUrl) analyzeBtn.disabled = false;
+      } catch (err) {
+        console.error(err);
+        statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-400"></span><span>모델 로드 오류 (새로고침 필요)</span>`;
+      }
+    }
+
+    // 2. 이미지 업로드 미리보기
+    imageInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        currentImageUrl = event.target.result;
+        previewImage.src = currentImageUrl;
+        previewImage.classList.remove('hidden');
+        uploadPlaceholder.classList.add('hidden');
+        if (classifier) analyzeBtn.disabled = false;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // 3. AI 판별 실행
+    analyzeBtn.addEventListener('click', async () => {
+      if (!classifier || !currentImageUrl) return;
+
+      document.getElementById('emptyResult').classList.add('hidden');
+      document.getElementById('analysisContent').classList.add('hidden');
+      document.getElementById('loadingResult').classList.remove('hidden');
+      analyzeBtn.disabled = true;
+
+      try {
+        const candidateLabels = DEVICE_DB.map(d => d.prompt);
+        const results = await classifier(currentImageUrl, candidateLabels);
+
+        // 최고 점수 라벨 매칭
+        const topResult = results[0];
+        const matchedDevice = DEVICE_DB.find(d => d.prompt === topResult.label) || DEVICE_DB[0];
+        const confidence = (topResult.score * 100).toFixed(1);
+
+        renderResult(matchedDevice, confidence);
+      } catch (error) {
+        alert('이미지 분석 중 오류가 발생했습니다. 다른 이미지로 다시 시도해주세요.');
+      } finally {
+        document.getElementById('loadingResult').classList.add('hidden');
+        analyzeBtn.disabled = false;
+      }
+    });
+
+    // 4. 판별 결과 UI 렌더링
+    function renderResult(device, confidence) {
+      document.getElementById('analysisContent').classList.remove('hidden');
+      document.getElementById('detectedName').textContent = device.name;
+      document.getElementById('confidenceText').textContent = `AI 외형 일치도: ${confidence}%`;
+      document.getElementById('inspectorGuide').textContent = device.guide;
+
+      const ruleBadge = document.getElementById('ruleBadge');
+      if (device.exam_rule === '반입 금지') {
+        ruleBadge.textContent = '🚫 반입 금지';
+        ruleBadge.className = 'px-3 py-1.5 rounded-lg text-sm font-extrabold bg-rose-100 text-rose-700 border border-rose-300';
+      } else {
+        ruleBadge.textContent = '✅ 반입 가능';
+        ruleBadge.className = 'px-3 py-1.5 rounded-lg text-sm font-extrabold bg-emerald-100 text-emerald-700 border border-emerald-300';
+      }
+
+      setAttrBox('attrCamera', device.has_camera);
+      setAttrBox('attrMic', device.has_mic_speaker);
+      setAttrBox('attrComm', device.has_communication);
+      setAttrBox('attrDisplay', device.has_display);
+    }
+
+    function setAttrBox(elementId, value) {
+      const el = document.getElementById(elementId);
+      const valEl = el.querySelector('.val');
+      if (value === 1) {
+        el.className = 'p-2 rounded-lg border border-rose-200 bg-rose-50 text-rose-800 flex justify-between items-center';
+        valEl.textContent = '보유 (1)';
+      } else {
+        el.className = 'p-2 rounded-lg border border-slate-200 bg-white text-slate-600 flex justify-between items-center';
+        valEl.textContent = '미보유 (0)';
+      }
+    }
+
+    // 5. 하단 데이터 도감 테이블 렌더링
+    function renderTable(filter = 'all') {
+      const tbody = document.getElementById('deviceTableBody');
+      tbody.innerHTML = '';
+
+      const filtered = filter === 'all'
+        ? DEVICE_DB
+        : DEVICE_DB.filter(d => d.exam_rule === filter);
+
+      filtered.forEach(item => {
+        const isBanned = item.exam_rule === '반입 금지';
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50';
+        tr.innerHTML = `
+          <td class="py-2.5 px-3 font-semibold text-slate-900">${item.name}</td>
+          <td class="py-2.5 px-2 text-center">${item.has_camera ? 'O (1)' : '-'}</td>
+          <td class="py-2.5 px-2 text-center">${item.has_mic_speaker ? 'O (1)' : '-'}</td>
+          <td class="py-2.5 px-2 text-center">${item.has_communication ? 'O (1)' : '-'}</td>
+          <td class="py-2.5 px-2 text-center">${item.has_display ? 'O (1)' : '-'}</td>
+          <td class="py-2.5 px-3 text-center">
+            <span class="px-2 py-0.5 rounded text-xs font-bold ${isBanned ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}">
+              ${item.exam_rule}
+            </span>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.getElementById('filterSelect').addEventListener('change', (e) => {
+      renderTable(e.target.value);
+    });
+
+    // 초기화 실행
+    renderTable();
+    initModel();
+  </script>
+</body>
+</html>
